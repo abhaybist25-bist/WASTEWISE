@@ -1,0 +1,16 @@
+package com.wastewise.notification;
+
+public enum NotificationType {
+    NEW_DONATION,
+    CLAIM_RECEIVED,
+    CLAIM_ACCEPTED,
+    CLAIM_REJECTED,
+    PICKUP_REMINDER,
+    PICKUP_CONFIRMED,
+    DELIVERY_CONFIRMED,
+    DONATION_CANCELLED,
+    LISTING_EXPIRING,
+    VERIFICATION_UPDATE,
+    SYSTEM_ALERT
+}
+

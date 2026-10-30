@@ -1,0 +1,252 @@
+{
+  "info": {
+    "name": "WasteWise API Collection",
+    "description": "Complete Postman collection for WasteWise Food Waste Reduction and Redistribution Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public Endpoints",
+      "item": [
+        {
+          "name": "Platform Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/analytics/platform-summary"
+          }
+        },
+        {
+          "name": "Demo Credentials",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/demo/credentials"
+          }
+        },
+        {
+          "name": "Browse Available Food",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/donations?page=0&size=10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login (Donor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"donor@grandhotel.com\",\n  \"password\": \"Donor@123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login (Recipient NGO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"contact@annaseva.org\",\n  \"password\": \"Ngo@123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@wastewise.org\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Donations",
+      "item": [
+        {
+          "name": "Create Food Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"foodName\": \"Fresh Veg Fried Rice & Dal\",\n  \"description\": \"Prepared fresh for banquet event, sealed containers\",\n  \"category\": \"COOKED_MEALS\",\n  \"quantity\": 25,\n  \"unit\": \"plates\",\n  \"dietaryType\": \"VEGETARIAN\",\n  \"storageCondition\": \"ROOM_TEMPERATURE\",\n  \"packagingDetails\": \"Sealed foil trays\",\n  \"pickupAddress\": \"MG Road\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946,\n  \"safeConsumptionDeadline\": \"2026-10-30T20:00:00Z\",\n  \"pickupDeadline\": \"2026-10-30T18:00:00Z\",\n  \"safetyDeclarationAccepted\": true,\n  \"safetyNotes\": \"FSSAI temperature checked\"\n}"
+            },
+            "url": "{{baseUrl}}/donations"
+          }
+        },
+        {
+          "name": "Get My Donations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/donations/my"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Claims",
+      "item": [
+        {
+          "name": "Claim a Donation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestedQuantity\": 10,\n  \"notes\": \"Community kitchen distribution\"\n}"
+            },
+            "url": "{{baseUrl}}/donations/:donationId/claims"
+          }
+        },
+        {
+          "name": "Get My Claims (Recipient)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/claims/my"
+          }
+        },
+        {
+          "name": "Get Incoming Claims (Donor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/claims/donor"
+          }
+        },
+        {
+          "name": "Update Claim Status (Accept / Pickup / Deliver)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}"
+            },
+            "url": "{{baseUrl}}/claims/:claimId/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics & AI",
+      "item": [
+        {
+          "name": "Donor Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/analytics/donor"
+          }
+        },
+        {
+          "name": "Recipient Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/analytics/recipient"
+          }
+        },
+        {
+          "name": "Admin Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/analytics/admin"
+          }
+        },
+        {
+          "name": "Gemini AI Waste Insights",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/ai/insights"
+          }
+        }
+      ]
+    }
+  ]
+}
+

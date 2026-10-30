@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+target/
+dist/
+build/
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Java
+hs_err_pid*
+*.class
+*.jar
