@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Upload, MapPin, Clock, Shield, AlertCircle, CheckCircle, ChevronRight, ChevronLeft, Leaf
+  Upload, MapPin, Clock, Shield, AlertCircle, CheckCircle, ChevronRight, ChevronLeft, Leaf,
+  UploadCloud, Trash2, Camera, Link2, X, Image as ImageIcon
 } from 'lucide-react';
 import { donationApi } from '../../api/donations';
 
@@ -29,6 +30,10 @@ export default function CreateDonationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
+  const [imageInfo, setImageInfo] = useState(null); // { name, size }
 
   const [form, setForm] = useState({
     foodName: '', description: '', category: 'COOKED_MEALS',
@@ -54,6 +59,82 @@ export default function CreateDonationPage() {
       () => { setLocating(false); alert('Could not get location. Please enter manually.'); }
     );
   };
+
+  const processImageFile = useCallback((file) => {
+    if (!file || !file.type?.startsWith('image/')) {
+      setError('Please select or paste a valid image file (JPEG, PNG, WEBP, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 1200;
+        let { width, height } = img;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+        const approximateKb = Math.round((dataUrl.length * (3 / 4)) / 1024);
+        setImageInfo({
+          name: file.name || 'Pasted Image',
+          size: approximateKb > 1024 ? `${(approximateKb / 1024).toFixed(1)} MB` : `${approximateKb} KB`
+        });
+        set('imageUrl', dataUrl);
+        setError('');
+      };
+      img.onerror = () => {
+        setError('Failed to process image. Please try a different photo.');
+      };
+      img.src = e.target.result;
+    };
+    reader.onerror = () => {
+      setError('Failed to read image file.');
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  // Listen for clipboard paste on step 1 (allows Ctrl+V anywhere on the page)
+  useEffect(() => {
+    const handleGlobalPaste = (e) => {
+      if (step !== 1) return;
+      const target = e.target;
+      const isInput = target?.tagName === 'INPUT' && target?.type !== 'file';
+      const isTextarea = target?.tagName === 'TEXTAREA';
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const blob = items[i].getAsFile();
+          if (blob) {
+            e.preventDefault();
+            processImageFile(blob);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, [step, processImageFile]);
 
   const validateStep1 = () => {
     if (!form.foodName.trim()) return 'Food name is required.';
@@ -197,9 +278,136 @@ export default function CreateDonationPage() {
                 </FormField>
               </div>
 
-              <FormField label="Image URL" hint="Paste a direct link to a food photo (optional)">
-                <input type="url" value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)}
-                  placeholder="https://example.com/food.jpg" className={inputCls} />
+              <FormField label="Food Photo" hint="Browse a local photo, drag & drop, or paste directly with Ctrl+V (optional)">
+                {form.imageUrl ? (
+                  <div className="relative border border-slate-200 rounded-2xl p-3.5 bg-slate-50 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="relative w-full sm:w-36 h-28 rounded-xl overflow-hidden bg-slate-200 flex-shrink-0 border border-slate-200 shadow-xs">
+                      <img
+                        src={form.imageUrl}
+                        alt="Food preview"
+                        className="w-full h-full object-cover"
+                        onError={() => setError('Could not render image preview. Please select another image.')}
+                      />
+                      <span className="absolute bottom-1.5 left-1.5 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-md font-medium">
+                        Preview
+                      </span>
+                    </div>
+
+                    <div className="flex-1 w-full flex flex-col justify-between py-1">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-sm font-semibold text-slate-800 truncate max-w-[200px] sm:max-w-xs">
+                            {imageInfo?.name || 'Food photo attached'}
+                          </span>
+                        </div>
+                        {imageInfo?.size && (
+                          <p className="text-xs text-slate-500 mt-0.5">Optimized size: {imageInfo.size}</p>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">This photo will be displayed to recipients on the marketplace.</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+                        >
+                          <Camera size={13} className="text-slate-500" /> Change Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            set('imageUrl', '');
+                            setImageInfo(null);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : imageMode === 'upload' ? (
+                  <div
+                    tabIndex={0}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) processImageFile(file);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      isDragging
+                        ? 'border-brand-500 bg-brand-50/70 scale-[1.01]'
+                        : 'border-slate-200 hover:border-brand-400 hover:bg-slate-50/80 bg-slate-50/40'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-2.5 shadow-xs border border-brand-100">
+                      <UploadCloud size={24} />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      Click to browse image or drag & drop here
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Or press <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[11px] font-mono text-slate-700 shadow-2xs">Ctrl + V</kbd> anywhere to paste from clipboard
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-2.5 text-[11px] text-slate-400">
+                      <span>JPG, PNG, WEBP, GIF</span>
+                      <span>•</span>
+                      <span>Auto-compressed</span>
+                    </div>
+
+                    <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageMode('url');
+                        }}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-1 hover:underline"
+                      >
+                        <Link2 size={13} /> Or paste an image URL instead
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={form.imageUrl}
+                        onChange={(e) => set('imageUrl', e.target.value)}
+                        placeholder="https://example.com/food-photo.jpg"
+                        className={inputCls}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageMode('upload')}
+                        className="whitespace-nowrap px-3 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                      >
+                        Browse file
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">Direct link to a food photo (e.g. from Unsplash or web)</p>
+                  </div>
+                )}
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) processImageFile(file);
+                    e.target.value = '';
+                  }}
+                />
               </FormField>
 
               <div className="grid grid-cols-2 gap-4">
@@ -334,13 +542,22 @@ export default function CreateDonationPage() {
               {/* Summary */}
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-2">
                 <div className="font-semibold text-slate-700 mb-2">📋 Listing Summary</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-                  <span><b>Food:</b> {form.foodName}</span>
-                  <span><b>Qty:</b> {form.quantity} {form.unit}</span>
-                  <span><b>Category:</b> {form.category?.replace(/_/g, ' ')}</span>
-                  <span><b>Type:</b> {form.dietaryType}</span>
-                  <span><b>City:</b> {form.city}</span>
-                  <span><b>Deadline:</b> {form.pickupDeadline ? new Date(form.pickupDeadline).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                <div className="flex items-start gap-3.5">
+                  {form.imageUrl && (
+                    <img
+                      src={form.imageUrl}
+                      alt={form.foodName}
+                      className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-2xs flex-shrink-0"
+                    />
+                  )}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 flex-1">
+                    <span><b>Food:</b> {form.foodName}</span>
+                    <span><b>Qty:</b> {form.quantity} {form.unit}</span>
+                    <span><b>Category:</b> {form.category?.replace(/_/g, ' ')}</span>
+                    <span><b>Type:</b> {form.dietaryType}</span>
+                    <span><b>City:</b> {form.city}</span>
+                    <span><b>Deadline:</b> {form.pickupDeadline ? new Date(form.pickupDeadline).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                  </div>
                 </div>
               </div>
 

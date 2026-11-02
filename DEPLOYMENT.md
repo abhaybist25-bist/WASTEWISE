@@ -18,10 +18,14 @@ This guide details how to build and deploy both the **Spring Boot backend** and 
 
 ## 2. Backend Production Deployment
 
+Vercel hosts the frontend in this repository. Deploy the Spring Boot API separately
+to a Java application host such as Render or Railway, and deploy MongoDB on Atlas.
+The frontend must be configured with the public URL of that API.
+
 ### Build Executable JAR
 ```bash
 cd backend
-mvn clean package -DskipTests
+mvn clean package
 ```
 The packaged standalone JAR will be created at:
 `backend/target/wastewise-backend-1.0.0.jar`
@@ -31,12 +35,11 @@ Set the following environment variables in your hosting provider (Render, Railwa
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `PORT` | Web server listening port | `8080` |
-| `SPRING_DATA_MONGODB_URI` | MongoDB Atlas URI | `mongodb+srv://...` |
-| `JWT_SECRET` | 256-bit+ secure signing key | `9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f` |
+| `MONGODB_URI` | MongoDB Atlas URI | `mongodb+srv://...` |
+| `JWT_SECRET` | Strong, unique signing key (keep it secret) | Set a generated secret in the host dashboard |
 | `JWT_EXPIRATION_MS` | Token expiry in ms | `86400000` (24 hours) |
-| `GEMINI_API_KEY` | Google Gemini API Key | `AIzaSy...` |
-| `CORS_ALLOWED_ORIGINS` | Production frontend domain | `https://your-wastewise-app.vercel.app` |
+| `GEMINI_API_KEY` | Optional Google Gemini API key | Set in the host dashboard if AI insights are enabled |
+| `CORS_ALLOWED_ORIGINS` | Production frontend origin | `https://your-wastewise-app.vercel.app` |
 
 ### Run Standalone JAR
 ```bash
@@ -54,35 +57,23 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ---
 
-## 3. Frontend Production Deployment (Vercel / Netlify)
+## 3. Frontend Production Deployment (Vercel)
 
-### Environment Variable
-Create `.env.production` in `frontend/`:
-```env
-VITE_API_BASE_URL=https://your-backend-api-domain.com/api
-```
+1. Import the GitHub repository into Vercel.
+2. Set **Root Directory** to `frontend`.
+3. Use `npm run build` as the build command and `dist` as the output directory.
+4. Add the `VITE_API_BASE_URL` environment variable in the Vercel project settings,
+   including `/api` at the end (for example, `https://your-backend.example.com/api`).
+   Set this for each environment you deploy (Production, Preview, and Development).
+5. Deploy or redeploy the project after setting the environment variable.
 
-### Build Command
+`frontend/vercel.json` contains the rewrite needed for React Router routes to work
+when opened directly or refreshed.
+
+### Build locally
 ```bash
 cd frontend
 npm run build
 ```
-Output directory: `frontend/dist`
-
-### Vercel / Netlify Configuration
-For client-side routing with React Router, include a rewrite rule:
-
-**Vercel (`vercel.json`):**
-```json
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-```
-
-**Netlify (`_redirects`):**
-```
-/*    /index.html   200
-```
-
+The build output is `frontend/dist`. Do not commit deployment secrets or a
+production `.env` file.
